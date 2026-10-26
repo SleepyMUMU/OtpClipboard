@@ -9,12 +9,13 @@ internal sealed record PipeRequest(
     bool? MinimizeToTray = null,
     string? Code = null,
     string? Time = null,
-    bool? StartupEnabled = null);
+    bool? StartupEnabled = null, bool? AutoCopy = null);
 
 internal sealed record PipeResponse(
     bool Success,
     string? Error = null,
-    SnapshotResponse? Snapshot = null);
+    SnapshotResponse? Snapshot = null,
+    Services.NotificationDeliveryDiagnostics? Diagnostics = null);
 
 internal sealed record SnapshotResponse(
     bool Monitoring,
@@ -27,4 +28,4 @@ internal sealed record SnapshotResponse(
     bool? StartupEnabled = null,
     bool StartupCanChange = false,
     string StartupMessage = "",
-    string? StartupError = null);
+    string? StartupError = null, bool AutoCopy = false);

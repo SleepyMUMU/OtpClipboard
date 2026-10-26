@@ -56,6 +56,7 @@ public sealed partial class MainPage : Page
     {
         if (_controller is null || !_ready) return;
         _initializing = true;
+        AutoCopyToggle.IsOn = _controller.Preferences.AutoCopy;
         PhoneLinkOnlyToggle.IsOn = _controller.Preferences.PhoneLinkOnly;
         PopupToggle.IsOn = _controller.Preferences.ShowPopup;
         TrayToggle.IsOn = _controller.Preferences.MinimizeToTray;
@@ -102,9 +103,9 @@ public sealed partial class MainPage : Page
         AuthorizeButton.Visibility = allowed ? Visibility.Collapsed : Visibility.Visible;
         if (_controller?.IsMonitoring == true)
             SetStatus(StatusKind.Success, "正在监听",
-                "后台等待“手机连接”的新通知，识别到验证码会自动复制。");
+                "后台接管手机通知；验证码通知附带复制按钮，自动复制由设置开关控制。");
         else if (allowed)
-            SetStatus(StatusKind.Neutral, "通知访问已授权", "点击“开始监听”恢复自动复制。");
+            SetStatus(StatusKind.Neutral, "通知访问已授权", "点击“开始监听”恢复通知接管。");
         else
             SetStatus(StatusKind.Caution, "需要通知访问权限",
                 "点击“授权通知访问”，并在系统提示中选择允许。");
@@ -174,7 +175,7 @@ public sealed partial class MainPage : Page
         try
         {
             await _controller.UpdatePreferencesAsync(
-                PhoneLinkOnlyToggle.IsOn, PopupToggle.IsOn, TrayToggle.IsOn);
+                PhoneLinkOnlyToggle.IsOn, PopupToggle.IsOn, TrayToggle.IsOn, AutoCopyToggle.IsOn);
         }
         catch (Exception ex) { ReportError($"设置保存失败：{ex.Message}"); }
     }
@@ -289,7 +290,7 @@ public sealed partial class MainPage : Page
         try
         {
             await _controller.UpdatePreferencesAsync(
-                PhoneLinkOnlyToggle.IsOn, PopupToggle.IsOn, true);
+                PhoneLinkOnlyToggle.IsOn, PopupToggle.IsOn, true, AutoCopyToggle.IsOn);
             _controller.RequestExit();
         }
         catch (Exception ex) { ReportError($"无法隐藏主界面：{ex.Message}"); }

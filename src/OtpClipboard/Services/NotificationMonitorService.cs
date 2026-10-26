@@ -33,6 +33,7 @@ public sealed class NotificationMonitorService : IDisposable
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
+    public RelayNotificationService? Relay { get; set; }
     public event Action? StateChanged;
     public event Action<string>? CodeCopied;
     public IReadOnlyList<MonitorRecord> Records => _records;
@@ -90,8 +91,9 @@ public sealed class NotificationMonitorService : IDisposable
     }
 
     public async Task<AppPreferences> UpdatePreferencesAsync(
-        bool phoneLinkOnly, bool showPopup, bool minimizeToTray)
+        bool phoneLinkOnly, bool showPopup, bool minimizeToTray, bool autoCopy)
     {
+        Preferences.AutoCopy = autoCopy;
         Preferences.PhoneLinkOnly = phoneLinkOnly;
         Preferences.ShowPopup = showPopup;
         Preferences.MinimizeToTray = minimizeToTray;
@@ -172,16 +174,23 @@ public sealed class NotificationMonitorService : IDisposable
     {
         if (args.ChangeKind != UserNotificationChangedKind.Added || !_monitoring) return;
         uint id = args.UserNotificationId;
+        var received = System.Diagnostics.Stopwatch.StartNew();
+        DeliveryTrace.Write("listener-callback", id);
+        _context.Post(async _ =>
+        {
+        DeliveryTrace.Write("dispatcher-ready", id, received.Elapsed.TotalMilliseconds);
+        if (_disposed || !_monitoring) return;
         if (!RememberNotification(id)) return;
         try
         {
             var notification = _listener.GetNotification(id);
-            if (notification is not null) _ = QueueNotificationAsync(notification);
+            if (notification is not null) await QueueNotificationAsync(notification);
         }
         catch (Exception ex)
         {
             AddRecord(EventKind.Failed, "失败", $"读取新通知失败（ID {id}）", ErrorText.Describe(ex));
         }
+        }, null);
     }
 
     private async Task QueueNotificationAsync(UserNotification notification)
@@ -226,6 +235,7 @@ public sealed class NotificationMonitorService : IDisposable
             HistoryArchive.TimeFormat, CultureInfo.InvariantCulture);
         string context = $"来源：{NotificationSource.Describe(appName, family)}　时间：{time}";
 
+        if (family == Windows.ApplicationModel.Package.Current.Id.FamilyName) return;
         if (Preferences.PhoneLinkOnly && !NotificationSource.IsPhoneLink(family, appId))
         {
             AddRecord(EventKind.Filtered, "已过滤", "来源不是手机连接，未做处理", context, null,
@@ -234,6 +244,8 @@ public sealed class NotificationMonitorService : IDisposable
         }
 
         string body = ReadText(notification);
+        DeliveryTrace.Write("phone-notification-read", notification.Id,
+            (DateTimeOffset.Now - notification.CreationTime).TotalMilliseconds, notification.CreationTime);
         string preview = OtpParser.Preview(body);
         context += preview.Length > 0 ? $"\n内容：{preview}" : "\n内容：（通知没有可读取的文本）";
         if (body.Length == 0)
@@ -243,26 +255,45 @@ public sealed class NotificationMonitorService : IDisposable
             return;
         }
 
+        // Do not replay or auto-copy stale notifications after a restart/manual scan.
+        if (DateTimeOffset.Now - notification.CreationTime > TimeSpan.FromMinutes(2)) return;
         string? code = OtpParser.Extract(body);
         if (code is null)
         {
+            RelayIfEnabled(notification, body, null, false);
             AddRecord(EventKind.NoMatch, "未匹配", "通知里没有识别到验证码", context, null,
                 notification.CreationTime.LocalDateTime);
             return;
         }
 
-        var result = await ClipboardService.TryCopyAsync(code, _shutdown.Token);
-        if (!result.Success)
+        // Submit the banner before clipboard persistence or UI/history work can delay it.
+        RelayIfEnabled(notification, body, code, Preferences.AutoCopy);
+        bool copied = false;
+        var clipboardTimer = System.Diagnostics.Stopwatch.StartNew();
+        if (Preferences.AutoCopy)
         {
-            AddRecord(EventKind.Failed, "失败", $"识别到验证码 {OtpParser.Mask(code)}，但写入剪贴板失败",
-                $"{context}\n{result.Error}", code, notification.CreationTime.LocalDateTime);
-            return;
+            var result = await ClipboardService.TryCopyAsync(code, _shutdown.Token);
+            copied = result.Success;
+            if (!copied) AddRecord(EventKind.Failed, "失败", "自动复制失败；可点击通知重试", result.Error ?? "", code);
         }
-        if (result.FlushWarning is not null) context += $"\n注意：Flush 失败（{result.FlushWarning}）";
-        AddRecord(EventKind.Copied, "已复制", $"验证码 {OtpParser.Mask(code)} 已写入剪贴板",
-            context, code, notification.CreationTime.LocalDateTime);
-        if (DateTimeOffset.Now - notification.CreationTime < TimeSpan.FromMinutes(2))
-            CodeCopied?.Invoke(code);
+        if (Relay is not null) Relay.ClipboardMilliseconds = clipboardTimer.Elapsed.TotalMilliseconds;
+        DeliveryTrace.Write(copied ? "clipboard-complete" : "clipboard-skipped-or-failed",
+            notification.Id, clipboardTimer.Elapsed.TotalMilliseconds);
+        AddRecord(copied ? EventKind.Copied : EventKind.Info, copied ? "已复制" : "待复制",
+            copied ? "验证码已自动复制" : "已识别验证码，点击通知按钮复制", context, code,
+            notification.CreationTime.LocalDateTime);
+    }
+
+    private void RelayIfEnabled(UserNotification original, string body, string? code, bool autoCopyEnabled)
+    {
+        if (!Preferences.ShowPopup || Relay is null) return;
+        try
+        {
+            // Preserve the original in the notification center during initial field testing.
+            DeliveryTrace.Write("relay-start", original.Id);
+            if (!Relay.Show(body, code, autoCopyEnabled)) Report("通知未能提交，请检查助手通知设置。");
+        }
+        catch (Exception ex) { Report("通知接管失败：" + ex.Message); }
     }
 
     private bool RememberNotification(uint id)

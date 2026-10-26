@@ -12,6 +12,7 @@ public partial class App : Application
     [STAThread]
     public static int Main(string[] args)
     {
+        WinRT.ComWrappersSupport.InitializeComWrappers();
         if (args.Contains("--ui", StringComparer.OrdinalIgnoreCase)) return RunUi();
 
         using var mutex = new Mutex(true, Api.BridgeNames.Mutex, out bool first);

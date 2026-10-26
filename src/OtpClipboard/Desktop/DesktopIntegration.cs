@@ -41,6 +41,8 @@ public sealed class DesktopIntegration : IDisposable
     private uint _taskbarCreated;
     private bool _classRegistered, _trayV4, _hotKeyRegistered, _disposed, _placing, _menuOpen;
     private bool _visible, _pressed, _hover, _canFill, _preview, _roundedByDwm;
+    private bool _copyOnly, _cardCopied;
+    public Func<string, Task<bool>>? CopyRequested { get; set; }
     private string _code = string.Empty;
     private bool _lightTheme = true;
     private uint _accentColor, _dpi = 96;
@@ -100,7 +102,7 @@ public sealed class DesktopIntegration : IDisposable
                     WS_POPUP, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, _module, IntPtr.Zero);
                 if (_host == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
                 _popup = CreateWindowEx(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED,
-                    _className, "点击填入验证码", WS_POPUP, 0, 0, 1, 1,
+                    _className, "验证码提示", WS_POPUP, 0, 0, 1, 1,
                     _host, IntPtr.Zero, _module, IntPtr.Zero);
                 if (_popup == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
                 SetAlpha(255); // 分层窗口在设置透明度之前不会显示。
@@ -128,11 +130,17 @@ public sealed class DesktopIntegration : IDisposable
     /// <summary>显示 8 秒。只接受 1～64 个非空白、非控制字符；重新调用会替换旧验证码与目标。</summary>
     public void ShowCode(string code) => ShowCode(code, preview: false);
 
+    public bool ShowNotificationCard(string code)
+    {
+        ShowCode(code, preview: false, copyOnly: true);
+        return _visible;
+    }
+
     /// <summary>
     /// preview 为 true 时仅预览提示，不填充、不声称已复制。普通调用前由宿主复制验证码。
     /// 无外部输入焦点时仍显示提示，但禁止自动填充。
     /// </summary>
-    public void ShowCode(string code, bool preview)
+    public void ShowCode(string code, bool preview, bool copyOnly = false)
     {
         VerifyAccess();
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -144,13 +152,15 @@ public sealed class DesktopIntegration : IDisposable
                 throw new ArgumentException("验证码不能包含空白或控制字符。", nameof(code));
 
         DismissCore();
+        _copyOnly = copyOnly;
+        _cardCopied = false;
         if (!IsTrayAvailable) AddTrayIcon(); // 仅在实际操作时重试，不轮询。
         _target = GetForegroundWindow();
         _targetThread = GetWindowThreadProcessId(_target, out _targetProcess);
         var info = GetTargetInfo();
         _targetFocus = info.Focus;
         _preview = preview;
-        _canFill = !preview && TargetMatches();
+        _canFill = !copyOnly && !preview && TargetMatches();
         _code = code;
         _lightTheme = UsesLightTheme();
         _accentColor = GetAccentColor(_lightTheme);
@@ -172,10 +182,10 @@ public sealed class DesktopIntegration : IDisposable
         IntPtr oldContext = SetThreadDpiAwarenessContext(PerMonitorV2);
         try
         {
-            if (!TryCaretAnchor(info, out _anchor) && !GetCursorPos(out _anchor))
+            if (!(copyOnly ? GetCursorPos(out _anchor) : TryCaretAnchor(info, out _anchor) || GetCursorPos(out _anchor)))
                 throw new Win32Exception("无法获取验证码浮窗位置。");
             _visible = true;
-            if (!PlacePopup(animate: true) || (_canFill && !TargetMatches()))
+            if (!PlacePopup(animate: !copyOnly) || (_canFill && !TargetMatches()))
                 throw new Win32Exception("无法安全显示验证码浮窗。");
             if (!_visible) return; // 原生调用期间可能已收到目标变化事件。
             // 每次使用不同的 ID，使上一个浮窗已经排队的 WM_TIMER 不会关闭新浮窗。
@@ -237,6 +247,7 @@ public sealed class DesktopIntegration : IDisposable
     }
 
     private string PopupHint() =>
+        _copyOnly ? (_cardCopied ? "已复制，可再次复制" : "复制验证码") :
         _preview ? "预览，不会复制" : _canFill ? "点击填入" : "已复制，按 Ctrl+V 粘贴";
 
     // Segoe Fluent Icons / MDL2 Assets 共用码位：View、Keyboard、Copy。
@@ -367,6 +378,11 @@ public sealed class DesktopIntegration : IDisposable
             int y = _anchor.Y + Scale(10);
             if ((long)y + height > work.Bottom) y = _anchor.Y - height - Scale(10);
             y = Math.Clamp(y, work.Top, work.Bottom - height);
+            if (_copyOnly)
+            {
+                x = Math.Max(work.Left, work.Right - width - Scale(16));
+                y = Math.Max(work.Top, work.Bottom - height - Scale(16));
+            }
             // 从锚点一侧滑入：浮窗在锚点下方时自上而下，在上方时自下而上。
             _popupX = x;
             _popupY = y;
@@ -453,6 +469,12 @@ public sealed class DesktopIntegration : IDisposable
     private void FillCode()
     {
         if (!_visible) return;
+        if (_copyOnly)
+        {
+            if (unchecked(GetTickCount() - _shownAt) >= LifetimeMs) { DismissCore(); return; }
+            _ = CopyCardAsync(_code, _timerSequence);
+            return;
+        }
         if (!_canFill)
         {
             bool preview = _preview;
@@ -483,6 +505,19 @@ public sealed class DesktopIntegration : IDisposable
         DismissCore();
         Report(sent == inputs.Length ? "已发送验证码填充，请确认目标输入框。" :
             "自动填充失败或仅完成部分输入（可能受权限限制），请检查输入框后手动粘贴验证码。");
+    }
+
+    private async Task CopyCardAsync(string code, uint generation)
+    {
+        try
+        {
+            bool copied = CopyRequested is not null && await CopyRequested(code);
+            if (_disposed || !_visible || !_copyOnly || generation != _timerSequence) return;
+            _cardCopied = copied;
+            if (!copied) Report("复制失败，请再次点击复制验证码。");
+            PlacePopup(animate: false);
+        }
+        catch (Exception ex) { Report("复制失败：" + ex.Message); }
     }
 
     private static INPUT UnicodeInput(char c, bool keyUp) => new()
@@ -770,7 +805,7 @@ public sealed class DesktopIntegration : IDisposable
             else ShowWindow(_popup, 0);
         }
         _code = string.Empty;
-        _canFill = _preview = false;
+        _canFill = _preview = _copyOnly = _cardCopied = false;
         _target = _targetFocus = IntPtr.Zero;
         _targetProcess = _targetThread = 0;
     }

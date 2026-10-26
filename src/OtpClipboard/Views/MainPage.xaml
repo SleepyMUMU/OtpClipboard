@@ -133,14 +133,14 @@
                             <TextBlock Text="最近的验证码" Style="{StaticResource DescriptionStyle}" />
                             <TextBlock x:Name="LatestCode" Text="——" FontSize="34" FontWeight="SemiBold"
                                        CharacterSpacing="120" IsTextSelectionEnabled="True" />
-                            <TextBlock x:Name="LatestCodeDetail" Text="还没有识别到验证码。收到后会自动复制，并在输入光标旁提示。"
+                            <TextBlock x:Name="LatestCodeDetail" Text="还没有识别到验证码。收到后会显示带复制按钮的通知。"
                                        Style="{StaticResource DescriptionStyle}" />
                         </StackPanel>
                         <Button x:Name="LatestCopyButton" Grid.Column="1" VerticalAlignment="Center" IsEnabled="False"
                                 Click="LatestCopyButton_Click">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE8C8;" FontSize="16" />
-                                <TextBlock Text="再次复制" />
+                                <TextBlock Text="复制验证码" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -178,12 +178,12 @@
                         <TextBlock Text="“手机连接”把通知同步到 Windows 通知中心。" Style="{StaticResource DescriptionStyle}" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4">
-                        <TextBlock Text="2  自动识别并复制" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                        <TextBlock Text="识别到验证码后立即写入剪贴板。" Style="{StaticResource DescriptionStyle}" />
+                        <TextBlock Text="2  识别并显示通知" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock Text="识别后立即显示提示卡；自动复制由开关控制。" Style="{StaticResource DescriptionStyle}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
-                        <TextBlock Text="3  点击提示填入" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                        <TextBlock Text="点输入光标旁的提示直接填入，或按 Ctrl+V。" Style="{StaticResource DescriptionStyle}" />
+                        <TextBlock Text="3  点击按钮复制" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock Text="点击通知中的复制按钮，再按 Ctrl+V 粘贴。" Style="{StaticResource DescriptionStyle}" />
                     </StackPanel>
                 </Grid>
                 <TextBlock Text="所有处理都在本机完成，不联网。" Style="{StaticResource DescriptionStyle}" Margin="1,8,0,0" />
@@ -282,7 +282,14 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Text="悬浮提示" Style="{StaticResource SectionHeaderStyle}" />
+                <Border Style="{StaticResource SettingCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel Spacing="2"><TextBlock Text="自动复制验证码到剪贴板"/><TextBlock Text="默认关闭：点击通知按钮才复制。开启后，新验证码会覆盖当前剪贴板。" Style="{StaticResource DescriptionStyle}"/></StackPanel>
+                        <ToggleSwitch x:Name="AutoCopyToggle" Grid.Column="1" IsOn="False" Style="{StaticResource SettingToggleStyle}" Toggled="Preference_Toggled"/>
+                    </Grid>
+                </Border>
+                <TextBlock Text="通知提示" Style="{StaticResource SectionHeaderStyle}" />
                 <Border Style="{StaticResource SettingCardStyle}">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
@@ -292,8 +299,8 @@
                         </Grid.ColumnDefinitions>
                         <FontIcon Glyph="&#xE765;" Style="{StaticResource SettingIconStyle}" />
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="收到验证码时显示悬浮提示" />
-                            <TextBlock Text="在输入光标旁显示 8 秒，点一下即可填入；找不到光标时显示在鼠标旁。关闭后仅复制到剪贴板。"
+                            <TextBlock Text="显示接管后的手机通知" />
+                            <TextBlock Text="验证码立即显示为右下角提示卡，点击可复制；普通通知仍会转发。"
                                        Style="{StaticResource DescriptionStyle}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="PopupToggle" Grid.Column="2" IsOn="True"
@@ -309,12 +316,12 @@
                         </Grid.ColumnDefinitions>
                         <FontIcon Glyph="&#xE890;" Style="{StaticResource SettingIconStyle}" />
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="预览悬浮提示" />
-                            <TextBlock Text="用示例 246810 查看效果，不会复制或填入。部分管理员窗口和特殊输入框需要手动 Ctrl+V。"
+                            <TextBlock Text="预览测试通知" />
+                            <TextBlock Text="显示虚构验证码 246810；点击按钮可测试复制。"
                                        Style="{StaticResource DescriptionStyle}" />
                         </StackPanel>
                         <Button Grid.Column="2" Content="预览" VerticalAlignment="Center" Click="PreviewPopup_Click"
-                                AutomationProperties.Name="预览悬浮提示（示例 246810）" />
+                                AutomationProperties.Name="预览测试通知（示例 246810）" />
                     </Grid>
                 </Border>
 
@@ -366,7 +373,7 @@
                         <FontIcon Glyph="&#xE737;" Style="{StaticResource SettingIconStyle}" />
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="窗口" />
-                            <TextBlock Text="收起后仍在后台监听；退出后新验证码不会再自动复制。" Style="{StaticResource DescriptionStyle}" />
+                            <TextBlock Text="收起后仍在后台监听；退出后停止通知接管与自动复制。" Style="{StaticResource DescriptionStyle}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Content="收起到托盘" Click="TrayButton_Click" />

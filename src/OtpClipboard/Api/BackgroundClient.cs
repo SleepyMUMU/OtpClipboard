@@ -21,10 +21,10 @@ internal sealed class BackgroundClient
         await SendAsync(BridgeNames.Scan);
 
     public async Task<SnapshotResponse> UpdatePreferencesAsync(
-        bool phoneLinkOnly, bool showPopup, bool minimizeToTray)
+        bool phoneLinkOnly, bool showPopup, bool minimizeToTray, bool autoCopy)
     {
         var request = new PipeRequest(BridgeNames.UpdatePreferences,
-            PhoneLinkOnly: phoneLinkOnly, ShowPopup: showPopup, MinimizeToTray: minimizeToTray);
+            PhoneLinkOnly: phoneLinkOnly, ShowPopup: showPopup, MinimizeToTray: minimizeToTray, AutoCopy: autoCopy);
         return await SendAsync(request);
     }
 

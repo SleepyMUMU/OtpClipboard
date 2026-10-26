@@ -12,6 +12,7 @@ namespace OtpClipboard.Services;
 /// </summary>
 public sealed class AppPreferences
 {
+    public bool AutoCopy { get; set; } = false;
     public bool PhoneLinkOnly { get; set; } = true;
     public bool ShowPopup { get; set; } = true;
     public bool MinimizeToTray { get; set; } = true;
@@ -55,6 +56,7 @@ public sealed class AppPreferences
         // 在调用线程捕获快照，避免后台序列化期间 UI 修改属性。
         var snapshot = new AppPreferences
         {
+            AutoCopy = AutoCopy,
             PhoneLinkOnly = PhoneLinkOnly,
             ShowPopup = ShowPopup,
             MinimizeToTray = MinimizeToTray,

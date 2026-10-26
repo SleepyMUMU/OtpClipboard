@@ -21,7 +21,7 @@ public sealed record StartupStatus(StartupTaskState? State, bool Succeeded, stri
 /// </summary>
 public static class StartupService
 {
-    public const string TaskId = "OtpClipboardStartup";
+    public static string TaskId => Package.Current.Id.Name.EndsWith(".Development") ? "OtpClipboardDevelopmentStartup" : "OtpClipboardStartup";
     private static readonly SemaphoreSlim ChangeGate = new(1, 1);
 
     public static async Task<StartupStatus> QueryAsync()

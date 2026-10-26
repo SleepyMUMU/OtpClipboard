@@ -85,8 +85,8 @@ public sealed class AppController : IDisposable
             Apply(await _client.RecopyAsync(item.Code, item.Time));
     }
 
-    public async Task UpdatePreferencesAsync(bool phoneLinkOnly, bool showPopup, bool minimizeToTray) =>
-        Apply(await _client.UpdatePreferencesAsync(phoneLinkOnly, showPopup, minimizeToTray));
+    public async Task UpdatePreferencesAsync(bool phoneLinkOnly, bool showPopup, bool minimizeToTray, bool autoCopy) =>
+        Apply(await _client.UpdatePreferencesAsync(phoneLinkOnly, showPopup, minimizeToTray, autoCopy));
 
     public async Task SetStartupAsync(bool enabled) =>
         Apply(await _client.SetStartupAsync(enabled));
@@ -149,6 +149,7 @@ public sealed class AppController : IDisposable
                 : new InvalidOperationException(snapshot.StartupError);
             Preferences = new AppPreferences
             {
+                AutoCopy = snapshot.AutoCopy,
                 PhoneLinkOnly = snapshot.PhoneLinkOnly,
                 ShowPopup = snapshot.ShowPopup,
                 MinimizeToTray = snapshot.MinimizeToTray,

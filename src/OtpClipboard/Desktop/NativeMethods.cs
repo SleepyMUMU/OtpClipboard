@@ -135,8 +135,9 @@ internal static class DesktopNativeMethods
     [DllImport("user32.dll")] internal static extern bool PeekMessage(out MSG message, IntPtr hwnd, uint min, uint max, uint remove);
     [DllImport("user32.dll")] internal static extern bool TranslateMessage(ref MSG message);
     [DllImport("user32.dll")] internal static extern IntPtr DispatchMessage(ref MSG message);
-    [DllImport("user32.dll")] internal static extern uint MsgWaitForMultipleObjects(
-        uint count, IntPtr[] handles, bool waitAll, uint milliseconds, uint wakeMask);
+    internal const uint MWMO_INPUTAVAILABLE = 0x0004;
+    [DllImport("user32.dll", SetLastError = true)] internal static extern uint MsgWaitForMultipleObjectsEx(
+        uint count, IntPtr[] handles, uint milliseconds, uint wakeMask, uint flags);
     [DllImport("user32.dll")] internal static extern void PostQuitMessage(int exitCode);
     [DllImport("user32.dll")] internal static extern bool IsWindow(IntPtr hwnd);
     [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();

@@ -80,3 +80,5 @@ preferences.json
 preferences.json.*.tmp
 *.dmp
 *.dump
+delivery-timing.jsonl
+delivery-timing.jsonl.previous

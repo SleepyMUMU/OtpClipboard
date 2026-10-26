@@ -10,6 +10,7 @@ internal sealed class BackgroundController : IDisposable
     private readonly DesktopHostWindow _host = new();
     private readonly NotificationMonitorService _monitor;
     private readonly DesktopIntegration _desktop;
+    private readonly RelayNotificationService _relay;
     private readonly BackgroundPipeServer _pipe;
     private readonly BackgroundDispatcher _dispatcher = new();
     private bool _disposed;
@@ -20,13 +21,22 @@ internal sealed class BackgroundController : IDisposable
     public BackgroundController()
     {
         SynchronizationContext.SetSynchronizationContext(_dispatcher);
+        DeliveryTrace.Start();
         _monitor = new NotificationMonitorService(_dispatcher);
         _desktop = new DesktopIntegration(
             _host.Handle,
             () => _ = ShowWindowAsync(),
             RequestExit,
             _monitor.Report);
-        _monitor.CodeCopied += OnCodeCopied;
+        _relay = new RelayNotificationService(_dispatcher, _monitor.Report);
+        _relay.ShowCodeCard = _desktop.ShowNotificationCard;
+        _desktop.CopyRequested = async code =>
+        {
+            var result = await ClipboardService.TryCopyAsync(code);
+            DeliveryTrace.Write(result.Success ? "card-copy-complete" : "card-copy-failed", 0);
+            return result.Success;
+        };
+        _monitor.Relay = _relay;
         _pipe = new BackgroundPipeServer(
             _monitor,
             _dispatcher,
@@ -104,15 +114,8 @@ internal sealed class BackgroundController : IDisposable
 
     private bool TryPreviewPopup(string code)
     {
-        try { _desktop.ShowCode(code, preview: true); return true; }
+        try { return _relay.Show("本地虚构短信：验证码 246810，用于部署测试。", code, preview: true); }
         catch (Exception ex) { _monitor.Report($"无法预览提示：{ex.Message}"); return false; }
-    }
-
-    private void OnCodeCopied(string code)
-    {
-        if (!_monitor.Preferences.ShowPopup) return;
-        try { _desktop.ShowCode(code); }
-        catch (Exception ex) { _monitor.Report($"显示验证码提示失败：{ex.Message}"); }
     }
 
     private void ExitFromPipe()
@@ -149,7 +152,7 @@ internal sealed class BackgroundController : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _monitor.CodeCopied -= OnCodeCopied;
+        _relay.Dispose();
         _monitor.Dispose();
         _desktop.Dispose();
         _host.Dispose();

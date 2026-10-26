@@ -52,9 +52,14 @@ internal sealed partial class DesktopHostWindow : IDisposable
     public void NotifyHostMessage() =>
         PostMessage(_handle, WM_NULL, UIntPtr.Zero, IntPtr.Zero);
 
-    public void WaitForHostMessage(WaitHandle wake) =>
-        MsgWaitForMultipleObjects(1, [wake.SafeWaitHandle.DangerousGetHandle()], false,
-            Infinite, QS_ALLINPUT);
+    public void WaitForHostMessage(WaitHandle wake)
+    {
+        // COM/WinRT can inspect the queue during a callback without consuming all input.
+        // Also wake for already-seen input instead of waiting for another user action.
+        uint result = MsgWaitForMultipleObjectsEx(1, [wake.SafeWaitHandle.DangerousGetHandle()],
+            Infinite, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        if (result == uint.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
 
     /// <summary>取出并分发已排队的窗口消息。消息队列必须清空，否则 MsgWait 会立即返回并忙等。</summary>
     public bool PumpPendingMessages()

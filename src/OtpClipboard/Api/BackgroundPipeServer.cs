@@ -42,6 +42,7 @@ internal sealed class BackgroundPipeServer : IAsyncDisposable
             {
                 await pipe.WaitForConnectionAsync(cancellationToken);
                 var request = await PipeCodec.ReadAsync<PipeRequest>(pipe, cancellationToken);
+                _listenerFailure = null;
                 var response = await HandleAsync(request, cancellationToken);
                 await PipeCodec.WriteAsync(pipe, response, cancellationToken);
                 if (_exitRequested)
@@ -52,6 +53,7 @@ internal sealed class BackgroundPipeServer : IAsyncDisposable
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
+            catch (EndOfStreamException) { /* A health probe may connect and close without a request. */ }
             catch (Exception ex)
             {
                 _listenerFailure = $"后台控制服务异常：{ex.Message}";
@@ -73,6 +75,11 @@ internal sealed class BackgroundPipeServer : IAsyncDisposable
         {
             switch (request.Command)
             {
+                case "notification-diagnostics":
+                    if (_monitor.Relay is null) return new(false, "通知服务不可用");
+                    var diagnostics = await _dispatcher.InvokeAsync(
+                        () => _monitor.Relay.GetDiagnosticsAsync(), TimeSpan.FromSeconds(10), cancellationToken);
+                    return new(true, Diagnostics: diagnostics);
                 case BridgeNames.Snapshot:
                     return new(true, Snapshot: CreateSnapshot());
                 case BridgeNames.RequestAccess:
@@ -92,7 +99,7 @@ internal sealed class BackgroundPipeServer : IAsyncDisposable
                     await _dispatcher.InvokeAsync(() => _monitor.UpdatePreferencesAsync(
                         request.PhoneLinkOnly ?? true,
                         request.ShowPopup ?? true,
-                        request.MinimizeToTray ?? true),
+                        request.MinimizeToTray ?? true, request.AutoCopy ?? false),
                         TimeSpan.FromSeconds(10), cancellationToken);
                     return new(true, Snapshot: CreateSnapshot());
                 case BridgeNames.Recopy:
@@ -161,7 +168,7 @@ internal sealed class BackgroundPipeServer : IAsyncDisposable
         _startupStatus?.IsEnabled,
         _startupStatus?.CanChange ?? false,
         _listenerFailure ?? _startupStatus?.Message ?? "正在读取开机自启动状态。",
-        _listenerFailure ?? _startupStatus?.Error?.Message);
+        _listenerFailure ?? _startupStatus?.Error?.Message, _monitor.Preferences.AutoCopy);
 
     public async ValueTask DisposeAsync()
     {

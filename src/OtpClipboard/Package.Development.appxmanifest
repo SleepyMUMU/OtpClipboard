@@ -5,10 +5,11 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10"
-  IgnorableNamespaces="uap uap3 desktop rescap systemai">
+  IgnorableNamespaces="uap uap3 desktop rescap systemai com">
 
   <Identity
     Name="B11E1D98-24B3-4D84-AE8C-5CFD2E423AC2.Development"
@@ -26,6 +27,7 @@
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
+    <PackageDependency Name="Microsoft.WindowsAppRuntime.2" MinVersion="2.5.1.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
   </Dependencies>
 
   <Resources>
@@ -46,6 +48,14 @@
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="04DBDA1A-956A-4619-92D7-E4A946913D3A" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer><com:ExeServer Executable="OtpClipboard.exe" DisplayName="验证码通知助手" Arguments="----AppNotificationActivated:">
+            <com:Class Id="04DBDA1A-956A-4619-92D7-E4A946913D3A" DisplayName="验证码通知助手" />
+          </com:ExeServer></com:ComServer>
+        </com:Extension>
         <desktop:Extension Category="windows.startupTask"
                            Executable="OtpClipboard.exe"
                            EntryPoint="Windows.FullTrustApplication">

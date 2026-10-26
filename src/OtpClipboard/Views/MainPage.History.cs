@@ -53,7 +53,7 @@ public sealed partial class MainPage
 
     private EventItem? LatestCopied() =>
         _controller?.Records.FirstOrDefault(item =>
-            item.Kind == EventKind.Copied && !string.IsNullOrEmpty(item.Code));
+            !string.IsNullOrEmpty(item.Code));
 
     private void UpdateLatestCode()
     {
@@ -61,7 +61,7 @@ public sealed partial class MainPage
         LatestCopyButton.IsEnabled = latest is not null;
         LatestCode.Text = latest?.Code ?? "——";
         LatestCodeDetail.Text = latest is null
-            ? "还没有识别到验证码。后台复制后会在这里显示。"
+            ? "还没有识别到验证码。识别后会在这里显示。"
             : $"{latest.Time} · {latest.Title}";
     }
 }
