@@ -48,6 +48,9 @@ jobs:
           Export-Certificate -Cert $cert -FilePath packaging/OtpClipboard-Dev.cer | Out-Null
           "SIGNING_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
 
+      - name: Restore Windows packaging tools
+        run: dotnet restore src/OtpClipboard/OtpClipboard.csproj -p:Configuration=Release -p:Platform=x64 -r win-x64 --nologo
+
       - name: Build complete offline installer
         run: ./scripts/Build-Installer.ps1 -Arch x64 -CertThumbprint $env:SIGNING_THUMBPRINT -ZipOnly
 
