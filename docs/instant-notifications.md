@@ -4,7 +4,7 @@
 
 - 验证码由后台直接绘制为右下角提示卡，不依赖 Windows 原生横幅的展示队列，不需要允许“重要通知”。
 - 提示卡停留 8 秒，新验证码替换旧卡片；点击复制，显示时不激活窗口，不自动向其他程序输入。
-- 自动复制默认关闭，可通过设置开关启用；提示卡始终保留手动复制入口。
+- 已配置版自动复制默认开启，可通过设置开关关闭；提示卡始终保留手动复制入口。
 - 无验证码的手机通知仍通过普通 Windows 通知转发；原通知保留在通知中心。若要避免重复横幅，可在 Windows 通知设置中关闭手机连接短信的横幅和声音，保留通知中心。
 - 修正后台等待消息的方式，使用 `MsgWaitForMultipleObjectsEx` 和 `MWMO_INPUTAVAILABLE` 处理已被检查但未消费的窗口消息。
 - 开发包采用独立的启动任务 ID，按需启动界面；关闭界面后后台继续工作。
@@ -13,7 +13,7 @@
 
 在 Windows 上安装 .NET 8/9 SDK，按 [开发指南](development.md) 构建并使用 `scripts/Restart-Dev.ps1` 注册开发包。需要 MSIX 包身份与通知访问授权。
 
-当前 x64 发布配置依赖系统 .NET 8 Runtime；应用清单显式声明 `Microsoft.WindowsAppRuntime.2`，最低版本 `2.5.1.0`。项目使用拆分的 Windows App SDK NuGet 包，避免引入未使用的 AI 组件。请先准备匹配的 Windows App Runtime，再部署。此派生版本尚未提供新的安装程序，上游 v1.0.5 安装包不含上述修改。
+当前 x64 发布配置包含自包含 .NET 8 Runtime；应用清单显式声明 `Microsoft.WindowsAppRuntime.2`，最低版本 `2.5.1.0`。完整离线安装包另附该 Windows App Runtime，安装脚本会自动检查并安装。下载与迁移步骤见 [已配置版说明](configured-release.md)。上游 v1.0.5 安装包不含这些修改。
 
 ## 延迟诊断
 

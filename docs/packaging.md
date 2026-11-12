@@ -10,9 +10,12 @@
    powershell -ExecutionPolicy Bypass -File .\scripts\Build-Installer.ps1
    ```
 
+   不安装 Inno Setup 时可加 `-ZipOnly`，生成完整离线 ZIP；解压后双击 `安装.cmd`。x64 发布配置包含 .NET 运行时，ZIP 另附 Windows App Runtime，无需目标电脑安装开发环境。GitHub 的 `Publish configured Windows package` 工作流会执行测试、打包与完整性检查后发布到本仓库 Releases。
+
 4. 输出在 `dist\`：
    - `OtpClipboard-<版本>-Setup.exe`：安装程序，上传到 Releases。
    - `OtpClipboard-<版本>-Installer\`：脚本版安装目录，包含 MSIX、运行时、证书和 `安装.cmd` / `卸载.cmd`。
+   - `OtpClipboard-<版本>-x64-Configured.zip`：上述目录的完整离线安装包及 `SHA256SUMS.txt` 校验文件。
 
 `Build-Installer.ps1` 的参数：
 

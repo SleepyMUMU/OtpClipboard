@@ -1,0 +1,98 @@
+name: Publish configured Windows package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-configured.yml
+      - src/OtpClipboard/Package.appxmanifest
+
+permissions:
+  contents: write
+
+concurrency:
+  group: configured-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Check publishable sources
+        run: ./scripts/Check-Privacy.ps1
+
+      - name: Test core
+        run: dotnet test tests/OtpClipboard.Core.Tests -c Release --nologo
+
+      - name: Create signing certificate
+        run: |
+          [xml]$manifest = Get-Content src/OtpClipboard/Package.appxmanifest
+          $version = $manifest.Package.Identity.Version
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          "RELEASE_TAG=v$version-configured" >> $env:GITHUB_ENV
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $manifest.Package.Identity.Publisher `
+            -KeyUsage DigitalSignature -FriendlyName 'OtpClipboard release signing' `
+            -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(3) `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          Export-Certificate -Cert $cert -FilePath packaging/OtpClipboard-Dev.cer | Out-Null
+          "SIGNING_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Build complete offline installer
+        run: ./scripts/Build-Installer.ps1 -Arch x64 -CertThumbprint $env:SIGNING_THUMBPRINT -ZipOnly
+
+      - name: Verify compiled package and configuration
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = Get-ChildItem dist/*-Configured.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName .local/release-check
+          $stage = Get-ChildItem .local/release-check -Directory | Select-Object -First 1
+          foreach ($name in @('Install.ps1', '安装.cmd', '卸载.cmd', 'OtpClipboard-Dev.cer', 'Microsoft.WindowsAppRuntime.2.msix')) {
+            if (-not (Test-Path (Join-Path $stage.FullName $name))) { throw "Missing installer component: $name" }
+          }
+          $msix = Get-ChildItem $stage.FullName -Filter OtpClipboard_*.msix | Select-Object -First 1
+          $archive = [IO.Compression.ZipFile]::OpenRead($msix.FullName)
+          try {
+            foreach ($name in @('AppxManifest.xml', 'AppxSignature.p7x', 'OtpClipboard.exe', 'OtpClipboard.dll', 'coreclr.dll', 'hostfxr.dll', 'System.Private.CoreLib.dll')) {
+              if (-not $archive.GetEntry($name)) { throw "Missing application component: $name" }
+            }
+            $reader = [IO.StreamReader]::new($archive.GetEntry('OtpClipboard.runtimeconfig.json').Open())
+            try { $runtime = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+            if ($runtime.runtimeOptions.framework -or $runtime.runtimeOptions.frameworks) { throw 'External .NET runtime dependency remains.' }
+          } finally { $archive.Dispose() }
+          $source = Get-Content src/OtpClipboard/Services/AppPreferences.cs -Raw
+          foreach ($setting in @('AutoCopy', 'PhoneLinkOnly', 'ShowPopup', 'MinimizeToTray')) {
+            if ($source -notmatch "$setting \{ get; set; \} = true;") { throw "Unexpected default: $setting" }
+          }
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Save installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OtpClipboard-configured-x64
+          path: |
+            dist/*-Configured.zip
+            dist/SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw 'Release already exists; increment the package version to publish another build.'
+          }
+          gh release create $env:RELEASE_TAG dist/*-Configured.zip dist/SHA256SUMS.txt `
+            --target $env:GITHUB_SHA --title "验证码剪贴板 $env:APP_VERSION · 已配置离线安装包" `
+            --notes-file docs/configured-release.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publishing failed.' }

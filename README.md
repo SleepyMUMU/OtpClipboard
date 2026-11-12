@@ -4,10 +4,10 @@
   <p><strong>手机收到验证码，电脑直接 Ctrl + V。</strong></p>
   <p>OtpClipboard · Windows 桌面效率小工具</p>
   <p>
-    <a href="https://github.com/wzp100/OtpClipboard/actions/workflows/ci.yml"><img src="https://github.com/wzp100/OtpClipboard/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/SleepyMUMU/OtpClipboard/actions/workflows/ci.yml"><img src="https://github.com/SleepyMUMU/OtpClipboard/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
     <img src="https://img.shields.io/badge/Windows-10%201809%2B-0078D4?logo=windows" alt="Windows 10 1809 或更高版本" />
     <img src="https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet" alt=".NET 8" />
-    <img src="https://img.shields.io/badge/Release-v1.0.5-22A06B" alt="最新版本 v1.0.5" />
+    <img src="https://img.shields.io/badge/Release-v1.0.6.0-22A06B" alt="最新版本 v1.0.6.0" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22A06B" alt="MIT 许可证" /></a>
   </p>
   <p><a href="#快速上手">快速上手</a> · <a href="#隐私与数据">隐私说明</a> · <a href="docs/development.md">开发指南</a> · <a href="docs/promotion/xiaohongshu.md">宣传素材</a></p>
@@ -17,7 +17,7 @@
 
 电脑登录时，不用再拿起手机、记住数字、切回来手动输入。验证码剪贴板从 **“手机连接（Phone Link）”转发到 Windows 通知中心的通知** 中提取验证码，立即显示右下角提示卡，点击卡片即可复制；也可开启自动复制后直接粘贴。
 
-> 本派生版本基于 [wzp100/OtpClipboard](https://github.com/wzp100/OtpClipboard)，保留原作者与 MIT 许可证。新增即时提示卡、自动复制开关及通知投递计时；上方历史版本徽章、宣传插画与下方 v1.0.5 安装链接属于上游版本，不包含本次修改。当前修改需从源码部署，详见 [本派生版本说明](docs/instant-notifications.md)。
+> 本派生版本基于 [wzp100/OtpClipboard](https://github.com/wzp100/OtpClipboard)，保留原作者与 MIT 许可证。新增即时提示卡、自动复制开关及通知投递计时，现提供已编译、预设好的完整离线安装包。[直接下载已配置版](https://github.com/SleepyMUMU/OtpClipboard/releases/download/v1.0.6.0-configured/OtpClipboard-1.0.6.0-x64-Configured.zip) · [新设备使用说明](docs/configured-release.md)。宣传插画为上游虚构演示。
 
 应用本身不联网，识别在本机完成。手机通知的转发由微软“手机连接”负责，连接方式和支持范围以该应用为准。
 
@@ -26,7 +26,7 @@
 | 功能 | 使用体验 |
 | --- | --- |
 | 自动识别 | 支持 4–8 位数字验证码，以及“验证码 / 动态码 / OTP / verification code”等中英文关键词 |
-| 自动复制开关 | 默认关闭；开启后新验证码会覆盖剪贴板，可直接按 **Ctrl + V** |
+| 自动复制开关 | 已配置版默认开启；新验证码会覆盖剪贴板，可直接按 **Ctrl + V** |
 | 右下角即时提示卡 | 显示 8 秒，点击复制；新验证码替换旧卡片，显示时不抢输入焦点 |
 | 常驻托盘 | 收起窗口后继续监听，按 **Ctrl + Alt + O** 唤回 |
 | 开机自启 | 可选择登录 Windows 后自动后台运行 |
@@ -74,21 +74,21 @@ flowchart LR
 - 以 iPhone 为例：先与“手机连接”完成配对，再在 **设置 → 蓝牙 → 已连接电脑 → 共享系统通知** 中开启通知共享。
 - 确认手机通知能出现在 Windows 通知中心。仅出现在“手机连接”应用内的内容，工具无法读取。
 
-### 2. 安装或从源码运行
+### 2. 下载已配置安装包
 
-下载 [v1.0.5 Windows x64 安装程序](https://github.com/wzp100/OtpClipboard/releases/download/v1.0.5/OtpClipboard-1.0.5.0-Setup.exe)，或前往 [Releases](https://github.com/wzp100/OtpClipboard/releases) 查看更新日志和 SHA-256 校验文件。其他架构请参考源码与打包说明。
+下载 [v1.0.6.0 Windows x64 已配置离线安装包](https://github.com/SleepyMUMU/OtpClipboard/releases/download/v1.0.6.0-configured/OtpClipboard-1.0.6.0-x64-Configured.zip)，**完整解压后双击 `安装.cmd`**。安装包已包含编译好的程序、.NET 和 Windows App Runtime，无需安装开发环境。前往 [本仓库 Releases](https://github.com/SleepyMUMU/OtpClipboard/releases) 获取校验文件。
 
 本派生版本部署后可点击“设置 → 预览测试通知”，用虚构值 `246810` 检查提示卡效果。预览本身不会自动复制；点击卡片可测试复制。
 
-安装包名称为 `OtpClipboard-<版本>-Setup.exe`。当前打包方案采用自签名证书，安装时需管理员权限导入到“本地计算机 → 受信任人”。Windows 可能显示未知发布者提示；请先核实来源。详细步骤见 [打包与安装说明](docs/packaging.md)。
+ZIP 名称为 `OtpClipboard-<版本>-x64-Configured.zip`。当前打包方案采用自签名证书，安装时需管理员权限导入到“本地计算机 → 受信任人”。Windows 可能显示未知发布者提示；请先核实来源。详细步骤见 [打包与安装说明](docs/packaging.md)。
 
 如果 Release 标签页只显示标题或一直空白，可直接使用上面的安装包链接，并尝试刷新页面、更换网络或在 GitHub 页面链接末尾加 `?`。GitHub 前端偶尔会遇到 CDN 或缓存加载异常，具体资源链接不依赖该页面渲染。
 
-### 3. 授权并开始使用
+### 3. 在新设备授权并开始使用
 
-1. 打开应用，点击 **授权通知访问**，在系统提示中允许。
+1. 新设备需先与手机配对。打开应用，点击 **授权通知访问**，在系统提示中允许；手机配对与系统授权不能通过安装包迁移。
 2. 授权成功后自动监听；后续启动会检查授权并恢复监听。
-3. 收到验证码后，点击右下角提示卡复制，再在目标输入框按 **Ctrl + V**。需要自动复制时在设置中开启相应开关。
+3. 收到验证码后，点击右下角提示卡复制，再在目标输入框按 **Ctrl + V**。本版自动复制默认开启，可直接按 **Ctrl + V**；不需要时可在设置中关闭。
 
 > 自动复制开启后，识别到的新验证码会覆盖当前剪贴板内容。提示卡只执行复制，粘贴由用户完成。
 

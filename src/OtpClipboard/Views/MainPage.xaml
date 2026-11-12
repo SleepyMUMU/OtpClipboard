@@ -285,8 +285,8 @@
                 <Border Style="{StaticResource SettingCardStyle}">
                     <Grid ColumnSpacing="16">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <StackPanel Spacing="2"><TextBlock Text="自动复制验证码到剪贴板"/><TextBlock Text="默认关闭：点击通知按钮才复制。开启后，新验证码会覆盖当前剪贴板。" Style="{StaticResource DescriptionStyle}"/></StackPanel>
-                        <ToggleSwitch x:Name="AutoCopyToggle" Grid.Column="1" IsOn="False" Style="{StaticResource SettingToggleStyle}" Toggled="Preference_Toggled"/>
+                        <StackPanel Spacing="2"><TextBlock Text="自动复制验证码到剪贴板"/><TextBlock Text="已配置版默认开启：新验证码会覆盖当前剪贴板。关闭后可点击提示卡复制。" Style="{StaticResource DescriptionStyle}"/></StackPanel>
+                        <ToggleSwitch x:Name="AutoCopyToggle" Grid.Column="1" IsOn="True" Style="{StaticResource SettingToggleStyle}" Toggled="Preference_Toggled"/>
                     </Grid>
                 </Border>
                 <TextBlock Text="通知提示" Style="{StaticResource SectionHeaderStyle}" />

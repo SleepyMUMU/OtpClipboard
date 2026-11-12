@@ -4,7 +4,9 @@
     # 签名证书指纹（CurrentUser\My 中须有私钥）；默认取 packaging\OtpClipboard-Dev.cer 的指纹。
     [string]$CertThumbprint,
     # 跳过构建，直接签名并打包已有的 src\OtpClipboard\bin\installer 里的 MSIX。
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    # 只生成解压后双击安装.cmd的完整离线安装包，不需要 Inno Setup。
+    [switch]$ZipOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -30,7 +32,7 @@ function Get-PackageVersion([string]$id) {
 }
 
 $winapp = Join-Path $nugetRoot "microsoft.windows.sdk.buildtools.winapp\$(Get-PackageVersion 'Microsoft.Windows.SDK.BuildTools.WinApp')\tools\win-x64\winapp.exe"
-$runtimeMsix = Join-Path $nugetRoot "microsoft.windowsappsdk.runtime\$(Get-PackageVersion 'Microsoft.WindowsAppSDK')\tools\MSIX\win10-$Arch\Microsoft.WindowsAppRuntime.2.msix"
+$runtimeMsix = Join-Path $nugetRoot "microsoft.windowsappsdk.runtime\$(Get-PackageVersion 'Microsoft.WindowsAppSDK.Runtime')\tools\MSIX\win10-$Arch\Microsoft.WindowsAppRuntime.2.msix"
 foreach ($path in $winapp, $runtimeMsix) {
     if (-not (Test-Path -LiteralPath $path)) { throw "找不到 $path，请先执行 dotnet restore。" }
 }
@@ -72,8 +74,19 @@ if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recu
 New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
 
 Copy-Item -LiteralPath $msixPath, $runtimeMsix, $certFile, (Join-Path $projectRoot 'README.md') -Destination $stageDir
-foreach ($name in 'Install.ps1', 'Uninstall.ps1', '安装.cmd', '卸载.cmd') {
+foreach ($name in 'Install.ps1', 'Uninstall.ps1', '安装.cmd', '卸载.cmd', '安装说明.txt') {
     Copy-Item -LiteralPath (Join-Path $installerSource $name) -Destination $stageDir
+}
+
+$zipPath = Join-Path $distRoot "OtpClipboard-$version-$Arch-Configured.zip"
+Compress-Archive -LiteralPath $stageDir -DestinationPath $zipPath -Force
+$checksumPath = Join-Path $distRoot 'SHA256SUMS.txt'
+$zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+[IO.File]::WriteAllText($checksumPath, "$zipHash  $([IO.Path]::GetFileName($zipPath))`n", [Text.UTF8Encoding]::new($false))
+if ($ZipOnly) {
+    Write-Host "完整离线安装包：$zipPath"
+    Write-Host "SHA-256：$checksumPath"
+    return
 }
 
 # 编译 Inno Setup 安装程序 exe。
@@ -106,7 +119,7 @@ $setupHash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash
 $checksumPath = Join-Path $distRoot 'SHA256SUMS.txt'
 [IO.File]::WriteAllText(
     $checksumPath,
-    "$setupHash  $([IO.Path]::GetFileName($setupPath))`n",
+    "$zipHash  $([IO.Path]::GetFileName($zipPath))`n$setupHash  $([IO.Path]::GetFileName($setupPath))`n",
     [Text.UTF8Encoding]::new($false)
 )
 Write-Host "  SHA-256：$checksumPath"

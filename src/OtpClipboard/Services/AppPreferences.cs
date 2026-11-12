@@ -12,7 +12,7 @@ namespace OtpClipboard.Services;
 /// </summary>
 public sealed class AppPreferences
 {
-    public bool AutoCopy { get; set; } = false;
+    public bool AutoCopy { get; set; } = true;
     public bool PhoneLinkOnly { get; set; } = true;
     public bool ShowPopup { get; set; } = true;
     public bool MinimizeToTray { get; set; } = true;
